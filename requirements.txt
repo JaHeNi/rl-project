@@ -1,2 +1,11 @@
 numpy
 gymnasium
+gym
+pyyaml
+torch
+imageio
+pygame
+ipdb
+scipy
+pandas
+matplotlib

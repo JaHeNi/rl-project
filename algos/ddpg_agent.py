@@ -20,7 +20,7 @@ class DDPGAgent(BaseAgent):
         self.max_action = self.cfg.max_action
         self.lr=self.cfg.lr
       
-        self.buffer = 
+        self.buffer = [] # fix syntax error TODO: fix correctly later
         
         self.batch_size = self.cfg.batch_size
         self.gamma = self.cfg.gamma
@@ -44,7 +44,7 @@ class DDPGAgent(BaseAgent):
     
     @torch.no_grad()
     def get_action(self, observation, evaluation=False):
-       
+        action = 0 # TODO: fix
         return action, {} # just return a positional value
 
         
@@ -57,7 +57,7 @@ class DDPGAgent(BaseAgent):
         while not done:
             
             # Sample action from policy
-            action = 
+            action = 0 # TODO: fix
 
             # Perform the action on the environment, get new state and reward
             next_obs, reward, done, _, _ = self.env.step(to_numpy(action))
