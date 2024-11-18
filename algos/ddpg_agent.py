@@ -1,5 +1,5 @@
 from .agent_base import BaseAgent
-from .ddpg_utils import Policy, Critic, ReplayBuffer
+from .ddpg_utils import Policy, Critic, ReplayBuffer, soft_update_params
 import utils.common_utils as cu
 import torch
 import numpy as np
@@ -19,8 +19,18 @@ class DDPGAgent(BaseAgent):
         self.action_dim = self.action_space_dim
         self.max_action = self.cfg.max_action
         self.lr=self.cfg.lr
+        
+        self.buffer_size = 1e6
       
-        self.buffer = [] # fix syntax error TODO: fix correctly later
+        self.pi = Policy(state_dim, self.action_dim, self.max_action).to(self.device)
+        self.pi_target = copy.deepcopy(self.pi)
+        self.pi_optim = torch.optim.Adam(self.pi.parameters(), lr=float(self.lr))
+
+        self.q = Critic(state_dim, self.action_dim).to(self.device)
+        self.q_target = copy.deepcopy(self.q)
+        self.q_optim = torch.optim.Adam(self.q.parameters(), lr=float(self.lr))
+        
+        self.buffer = ReplayBuffer(state_dim, self.action_dim, max_size=int(float(self.buffer_size)))
         
         self.batch_size = self.cfg.batch_size
         self.gamma = self.cfg.gamma
@@ -36,17 +46,95 @@ class DDPGAgent(BaseAgent):
     def update(self,):
         """ After collecting one trajectory, update the pi and q for #transition times: """
         info = {}
-       
+        update_iter = self.buffer_ptr - self.buffer_head # update the network once per transition
+
+        if self.buffer_ptr > self.random_transition: # update once we have enough data
+            for _ in range(update_iter):
+                info = self._update()
+        
+        # update the buffer_head:
+        self.buffer_head = self.buffer_ptr
         return info
-
-
-
     
     @torch.no_grad()
     def get_action(self, observation, evaluation=False):
-        action = 0 # TODO: fix
+        if observation.ndim == 1: observation = observation[None] # add the batch dimension
+        x = torch.from_numpy(observation).float().to(self.device)
+
+        if self.buffer_ptr < self.random_transition: # collect random trajectories for better exploration.
+            action = torch.rand(self.action_dim)
+        else:
+            expl_noise = 0.1 * self.max_action # the stddev of the expl_noise if not evaluation
+            
+            action = self.pi(x)
+            
+            if not evaluation:
+                action = action + torch.randn_like(action)*expl_noise
+
         return action, {} # just return a positional value
 
+
+    # 1. compute target Q, you should not modify the gradient of the variables
+    def calculate_target(self, batch):
+        ########## Your code starts here. ##########
+        with torch.no_grad():
+            next_action = self.pi_target(batch.next_state)
+            q_tar = self.q_target(batch.next_state, next_action)
+            target_Q = batch.reward + batch.not_done*self.gamma*q_tar
+        ########## Your code ends here. ##########
+        return target_Q
+        
+    # 2. compute critic loss
+    def calculate_critic_loss(self, current_Q, target_Q):
+        ########## Your code starts here. ##########
+        critic_loss = F.mse_loss(current_Q, target_Q)
+        ########## Your code ends here. ##########
+        return critic_loss
+
+    # 3. compute actor loss
+    def calculate_actor_loss(self, batch):
+        ########## Your code starts here. ##########
+        actor_loss = -self.q(batch.state, self.pi(batch.state)).mean()
+        ########## Your code ends here. ##########
+        return actor_loss
+
+    def _update(self,):
+        # get batch data
+        batch = self.buffer.sample(self.batch_size, device=self.device)
+        #    batch contains:
+        #    state = batch.state, shape [batch, state_dim]
+        #    action = batch.action, shape [batch, action_dim]
+        #    next_state = batch.next_state, shape [batch, state_dim]
+        #    reward = batch.reward, shape [batch, 1]
+        #    not_done = batch.not_done, shape [batch, 1]
+
+        """
+        # TODO: Get the current Q estimate
+        """
+        current_Q = self.q(batch.state, batch.action)
+
+        target_Q = self.calculate_target(batch)
+        critic_loss = self.calculate_critic_loss(current_Q, target_Q)
+
+        # optimize the critic
+        self.q_optim.zero_grad()
+        critic_loss.backward()
+        self.q_optim.step()
+
+        actor_loss = self.calculate_actor_loss(batch)
+        
+        # optimize the actor
+        self.pi_optim.zero_grad()
+        actor_loss.backward()
+        self.pi_optim.step()
+
+        """
+        # TODO: update the target q and pi using u.soft_update_params() (See the DQN code)
+        """
+        soft_update_params(self.q, self.q_target, self.tau)
+        soft_update_params(self.pi, self.pi_target, self.tau)
+
+        return {}
         
     def train_iteration(self):
         #start = time.perf_counter()
@@ -57,7 +145,7 @@ class DDPGAgent(BaseAgent):
         while not done:
             
             # Sample action from policy
-            action = 0 # TODO: fix
+            action = self.get_action(obs)
 
             # Perform the action on the environment, get new state and reward
             next_obs, reward, done, _, _ = self.env.step(to_numpy(action))
