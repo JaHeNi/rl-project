@@ -6,6 +6,7 @@ import numpy as np
 import torch.nn.functional as F
 import copy, time
 from pathlib import Path
+from torch.distributions import MultivariateNormal
 
 def to_numpy(tensor):
     return tensor.cpu().numpy().flatten()
@@ -15,6 +16,7 @@ class DDPGAgent(BaseAgent):
         super(DDPGAgent, self).__init__(config)
         self.device = self.cfg.device  # ""cuda" if torch.cuda.is_available() else "cpu"
         self.name = 'ddpg'
+        
         self.action_dim = self.action_space_dim
         self.state_dim = self.observation_space_dim
         self.max_action = self.cfg.max_action
@@ -58,20 +60,38 @@ class DDPGAgent(BaseAgent):
     
     @torch.no_grad()
     def get_action(self, observation, evaluation=False):
-        if observation.ndim == 1: observation = observation[None] # add the batch dimension
+        # Add the batch dimension
+        if observation.ndim == 1:
+            observation = observation[None]
+
+        # Convert the observation to torch tensor
         x = torch.from_numpy(observation).float().to(self.device)
 
-        if self.buffer_ptr < self.random_transition: # collect random trajectories for better exploration.
-            action = torch.rand(self.action_dim)
-        else:
-            expl_noise = 0.1 * self.max_action # the stddev of the expl_noise if not evaluation
-            
-            action = self.pi(x)
-            
-            if not evaluation:
-                action = action + torch.randn_like(action)*expl_noise
+        # The stddev of the expl_noise if not evaluation
+        expl_noise = 0.05 * self.max_action
 
-        return action, {} # just return a positional value
+        # Get the action
+        with torch.no_grad():
+            action = self.pi(x).squeeze(0)
+
+        if not evaluation:
+            # Collect random trajectories for better exploration.
+            if self.buffer_ptr < self.random_transition:
+                # Random actions of shape (action_dim,)
+                action = torch.FloatTensor(self.action_dim).uniform_(-1, 1)
+                return action, {}
+
+            # Create a multivariate normal distribution
+            m = MultivariateNormal(
+                torch.zeros(action.shape), torch.eye(action.shape[0]) * expl_noise**2
+            )
+            # Shape of noise: (action_dim,)
+            noise = m.sample()
+            action += noise
+
+        # Clip the action within the bounds of the action space
+        action = action.clamp(-self.max_action, self.max_action)
+        return action, {}  # just return a positional value
 
 
     # 1. compute target Q, you should not modify the gradient of the variables
