@@ -9,3 +9,4 @@ ipdb
 scipy
 pandas
 matplotlib
+moviepy

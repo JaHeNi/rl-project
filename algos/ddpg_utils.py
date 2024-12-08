@@ -47,9 +47,6 @@ class Critic(nn.Module):
         x = torch.cat([state, action], 1)
         return self.value(x) # output shape [batch, 1]
 
-Batch = namedtuple('Batch', ['state', 'action', 'next_state', 'reward', 'not_done', 'extra'])
-
-
 class ReplayBuffer(object):
     def __init__(self, state_shape:tuple, action_dim: int, max_size=int(1e6)):
         self.max_size = max_size
