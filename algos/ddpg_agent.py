@@ -60,14 +60,16 @@ class DDPGAgent(BaseAgent):
     
     @torch.no_grad()
     def get_action(self, observation, evaluation=False):
+        # get_action help saarched from 
+        # https://github.com/jiemingyou/DDPG-reinforcement-learning/blob/main/algos/ddpg_agent.py
+        # however previous commits exhibit similar behaviour
+        
         # Add the batch dimension
-        if observation.ndim == 1:
+        if observation.ndim == 1: 
             observation = observation[None]
 
-        # Convert the observation to torch tensor
         x = torch.from_numpy(observation).float().to(self.device)
 
-        # The stddev of the expl_noise if not evaluation
         expl_noise = 0.05 * self.max_action
 
         # Get the action
@@ -77,21 +79,18 @@ class DDPGAgent(BaseAgent):
         if not evaluation:
             # Collect random trajectories for better exploration.
             if self.buffer_ptr < self.random_transition:
-                # Random actions of shape (action_dim,)
                 action = torch.FloatTensor(self.action_dim).uniform_(-1, 1)
                 return action, {}
 
-            # Create a multivariate normal distribution
             m = MultivariateNormal(
                 torch.zeros(action.shape), torch.eye(action.shape[0]) * expl_noise**2
             )
-            # Shape of noise: (action_dim,)
+            
             noise = m.sample()
             action += noise
 
-        # Clip the action within the bounds of the action space
         action = action.clamp(-self.max_action, self.max_action)
-        return action, {}  # just return a positional value
+        return action, {} # just return positional value
 
 
     # 1. compute target Q, you should not modify the gradient of the variables
