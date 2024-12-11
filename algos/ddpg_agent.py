@@ -70,7 +70,7 @@ class DDPGAgent(BaseAgent):
 
         x = torch.from_numpy(observation).float().to(self.device)
 
-        expl_noise = 0.05 * self.max_action
+        expl_noise = 0.1 * self.max_action
 
         # Get the action
         with torch.no_grad():
