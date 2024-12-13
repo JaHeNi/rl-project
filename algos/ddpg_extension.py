@@ -14,14 +14,48 @@ def to_numpy(tensor):
     return tensor.cpu().numpy().flatten()
 
 class DDPGExtension(DDPGAgent):
+
+    """
+    ddpg base constructor
+        def __init__(self, config=None):
+        super(DDPGAgent, self).__init__(config)
+        self.device = self.cfg.device  # ""cuda" if torch.cuda.is_available() else "cpu"
+        self.name = 'ddpg'
+        
+        self.action_dim = self.action_space_dim
+        self.state_dim = self.observation_space_dim
+        self.max_action = self.cfg.max_action
+        self.lr=self.cfg.lr
+        
+        self.buffer_size = 1e6
+      
+        self.pi = Policy(self.state_dim, self.action_dim, self.max_action).to(self.device)
+        self.pi_target = copy.deepcopy(self.pi)
+        self.pi_optim = torch.optim.Adam(self.pi.parameters(), lr=float(self.lr))
+
+        self.q = Critic(self.state_dim, self.action_dim).to(self.device)
+        self.q_target = copy.deepcopy(self.q)
+        self.q_optim = torch.optim.Adam(self.q.parameters(), lr=float(self.lr))
+        
+        self.buffer = ReplayBuffer((self.state_dim, ), self.action_dim, max_size=int(float(self.buffer_size)))
+        
+        self.batch_size = self.cfg.batch_size
+        self.gamma = self.cfg.gamma
+        self.tau = self.cfg.tau
+        
+        # used to count number of transitions in a trajectory
+        self.buffer_ptr = 0
+        self.buffer_head = 0 
+        self.random_transition = 5000 # collect 5k random data for better exploration
+        self.max_episode_steps=self.cfg.max_episode_steps
+    
+    """
+
     def __init__(self, config=None):
         super(DDPGExtension, self).__init__(config)
         # LNSS-specific parameters
         self.n_steps = config.get("n_steps", 5)  # Horizon for N-step reward aggregation
-        self.gamma = config.get("gamma", 0.99)  # Discount factor
         self.exp_buffer = deque()  # Temporary buffer for N-step transitions
-        self.buffer = ReplayBuffer((self.state_dim, ), self.action_dim, max_size=int(float(self.buffer_size)))
-        self.max_episode_steps = config.get("max_episode_steps", 10000)
 
     def store_lnss_transition(self, state, action, reward, next_state, done):
         """
@@ -62,8 +96,7 @@ class DDPGExtension(DDPGAgent):
             discounted_reward *= ds_factor
 
             # Store transition in the main replay buffer #    def add(self, state, action, next_state, reward, done, extra:dict=None):
-
-            self.buffer.add(state_0, action_0, next_state_1, discounted_reward, done_1)
+            self.record(state_0, action_0, next_state_1, discounted_reward, done_1)
 
         # Clear the buffer after processing all transitions at the end of the episode
         if done:
