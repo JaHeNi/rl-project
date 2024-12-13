@@ -14,7 +14,8 @@ def to_numpy(tensor):
 class DDPGAgent(BaseAgent):
     def __init__(self, config=None):
         super(DDPGAgent, self).__init__(config)
-        self.device = self.cfg.device  # ""cuda" if torch.cuda.is_available() else "cpu"
+        self.device = self.cfg.device #"cuda" if torch.cuda.is_available() else "cpu" # 
+        print(f"Training device is {self.device}")
         self.name = 'ddpg'
         
         self.action_dim = self.action_space_dim
@@ -86,7 +87,7 @@ class DDPGAgent(BaseAgent):
                 torch.zeros(action.shape), torch.eye(action.shape[0]) * expl_noise**2
             )
             
-            noise = m.sample()
+            noise = m.sample().to(self.device)
             action += noise
 
         action = action.clamp(-self.max_action, self.max_action)

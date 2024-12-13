@@ -10,3 +10,4 @@ scipy
 pandas
 matplotlib
 moviepy
+ipywidgets
