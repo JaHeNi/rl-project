@@ -24,9 +24,9 @@ class Policy(nn.Module):
         super().__init__()
         self.max_action = max_action
         self.actor = nn.Sequential(
-            nn.Linear(state_dim, 32), nn.ReLU(),
-            nn.Linear(32, 32), nn.ReLU(),
-            nn.Linear(32, action_dim)
+            nn.Linear(state_dim, 64), nn.ReLU(),
+            nn.Linear(64, 64), nn.ReLU(),
+            nn.Linear(64, action_dim)
         )
 
     def forward(self, state):
@@ -38,9 +38,9 @@ class Critic(nn.Module):
     def __init__(self, state_dim, action_dim):
         super().__init__()
         self.value = nn.Sequential(
-            nn.Linear(state_dim+action_dim, 32), nn.ReLU(),
-            nn.Linear(32, 32), nn.ReLU(),
-            nn.Linear(32, 1)
+            nn.Linear(state_dim+action_dim, 64), nn.ReLU(),
+            nn.Linear(64, 64), nn.ReLU(),
+            nn.Linear(64, 1)
         )
 
     def forward(self, state, action):
