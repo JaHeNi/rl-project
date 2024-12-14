@@ -54,7 +54,7 @@ class DDPGExtension(DDPGAgent):
     def __init__(self, config=None):
         super(DDPGExtension, self).__init__(config)
         # LNSS-specific parameters
-        self.n_steps = config.get("n_steps", 10)  # Horizon for N-step reward aggregation
+        self.n_steps = config.get("n_steps", 20)  # Horizon for N-step reward aggregation
         self.exp_buffer = deque()  # Temporary buffer for N-step transitions
 
     def store_lnss_transition(self, state, action, reward, next_state, done):
