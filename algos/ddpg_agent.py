@@ -61,10 +61,6 @@ class DDPGAgent(BaseAgent):
     
     @torch.no_grad()
     def get_action(self, observation, evaluation=False):
-        # get_action help saarched from 
-        # https://github.com/jiemingyou/DDPG-reinforcement-learning/blob/main/algos/ddpg_agent.py
-        # however previous commits exhibit similar behaviour
-        
         # Add the batch dimension
         if observation.ndim == 1: 
             observation = observation[None]
